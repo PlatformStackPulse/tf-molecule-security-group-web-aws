@@ -1,11 +1,36 @@
 # tf-molecule-security-group-web-aws
 
 [![CI](https://github.com/PlatformStackPulse/tf-molecule-security-group-web-aws/actions/workflows/ci.yml/badge.svg)](https://github.com/PlatformStackPulse/tf-molecule-security-group-web-aws/actions/workflows/ci.yml)
-![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.6.0-blueviolet)
+![Terraform](https://img.shields.io/badge/terraform-%3E%3D1.11.3-blueviolet)
 
-## Purpose
+Web-tier AWS security group molecule: one security group with HTTP (80) and HTTPS (443) ingress from an allowed CIDR plus unrestricted egress, composed from PlatformStackPulse security-group atoms and named via `tf-label`.
 
-Terraform molecule: Web-tier security group with HTTP/HTTPS ingress and all egress.
+## Features
+
+- **HTTP/HTTPS ingress** — opens ports 80 and 443 (TCP) to a configurable `allowed_cidr` (defaults to `0.0.0.0/0`).
+- **All egress** — a single all-protocols, all-ports egress rule to `0.0.0.0/0` for outbound traffic.
+- **Atom composition** — wires the `tf-atom-security-group-aws` and `tf-atom-security-group-rule-aws` atoms so the group and its rules stay version-pinned and consistent.
+- **tf-label naming & tagging** — namespace/stage/name/tags flow through `module.this` for standard, disambiguated identifiers and tags.
+- **Toggle switch** — `enabled = false` creates nothing, so the module can be conditionally included in larger compositions.
+
+## Usage
+
+```hcl
+module "web_sg" {
+  source = "git::https://github.com/PlatformStackPulse/tf-molecule-security-group-web-aws.git?ref=v1.0.0"
+
+  namespace = "eg"
+  stage     = "prod"
+  name      = "web"
+
+  vpc_id       = "vpc-0123456789abcdef0"
+  allowed_cidr = "10.0.0.0/16"
+
+  tags = {
+    Team = "platform"
+  }
+}
+```
 
 ## Module Documentation
 
@@ -63,6 +88,28 @@ No resources.
 
 | Name | Description |
 |------|-------------|
+| <a name="output_id"></a> [id](#output\_id) | Disambiguated ID (tf-label) for the web security group tier. |
 | <a name="output_security_group_arn"></a> [security\_group\_arn](#output\_security\_group\_arn) | ARN of the web security group |
 | <a name="output_security_group_id"></a> [security\_group\_id](#output\_security\_group\_id) | ID of the web security group |
 <!-- END_TF_DOCS -->
+
+## Tests
+
+Unit tests use the Terraform test framework with a mock AWS provider (no real
+AWS calls, no credentials required). They assert on plan-known values only.
+
+```bash
+terraform init -backend=false
+terraform test -test-directory=tests/unit
+# or:
+make test-unit
+```
+
+Integration tests under `tests/integration/` exercise real AWS resources and
+require credentials:
+
+```bash
+terraform test -test-directory=tests/integration
+# or:
+make test-integration
+```
